@@ -2,6 +2,8 @@
 
 Raspberry Pi driver for ADS1299. 
 
-Author: Fred Simard
+### Author
+Fred Simard
 
-Maintainer: AJ Keller (@aj-ptw)
+### Maintainer
+AJ Keller (@aj-ptw)
