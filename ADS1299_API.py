@@ -70,7 +70,7 @@ from  time import time, sleep
 import random
 import platform
 import sys
-    
+
 import numpy as np
 
 STUB_SPI = False
@@ -85,13 +85,11 @@ try:
     import RPi.GPIO as GPIO
 except:
     STUB_GPIO = True
-    
 
 # eeg data scaling function
 # adjusted from (5/Gain)/2^24, where gain is 24
 # note: datasheet says 4.5 instead of 5, but this value was determined experimentally
 SCALE_TO_UVOLT = 0.0000000121
-
 
 """
 # conv24bitsToFloat(unpacked)
@@ -101,37 +99,41 @@ SCALE_TO_UVOLT = 0.0000000121
 # @return data scaled to uVolt
 # @thanks: https://github.com/OpenBCI/OpenBCI_Python/blob/master/open_bci_ganglion.py
 """
+
+
 def conv24bitsToFloat(unpacked):
-    
-    """ Convert 24bit data coded on 3 bytes to a proper integer """ 
+    """ Convert 24bit data coded on 3 bytes to a proper integer """
     if len(unpacked) != 3:
         raise ValueError("Input should be 3 bytes long.")
-    
+
     # FIXME: quick'n dirty, unpack wants strings later on
     literal_read = struct.pack('3B', unpacked[0], unpacked[1], unpacked[2])
 
-    #3byte int in 2s compliment
+    # 3byte int in 2s compliment
     if (unpacked[0] > 127):
-        pre_fix = bytes(bytearray.fromhex('FF')) 
+        pre_fix = bytes(bytearray.fromhex('FF'))
     else:
         pre_fix = bytes(bytearray.fromhex('00'))
 
     literal_read = pre_fix + literal_read;
 
-    #unpack little endian(>) signed integer(i) (makes unpacking platform independent)
+    # unpack little endian(>) signed integer(i) (makes unpacking platform independent)
     myInt = struct.unpack('>i', literal_read)[0]
 
-    #convert to uVolt
-    return myInt*SCALE_TO_UVOLT
-  
+    # convert to uVolt
+    return myInt * SCALE_TO_UVOLT
+
 
 """
 DefaultCallback
 @brief used as default client callback for tests 
 @data byte array of 1xN, where N is the number of channels
 """
+
+
 def DefaultCallback(data):
     print repr(data)
+
 
 """ ADS1299 PINS """
 START_PIN = 22
@@ -159,34 +161,35 @@ MAX_NB_CHANNELS = 8
 # @brief Encapsulated API, provides basic functionnalities
 #        to configure and control a ADS1299 connected to the SPI port
 """
+
+
 class ADS1299_API(object):
-    
     # spi port
     spi = None
-    
+
     # thread processing inputs
     stubThread = None
     APIAlive = True
-    
+
     # lock over SPI port
     spi_lock = None
-    
+
     # array of client handles
     clientUpdateHandles = []
-    
+
     # device configuration
-    nb_channels = 8         #{1-8}
-    sampling_rate = 500     #{250,500,1000,2000,4000}
-    bias_enabled = False     #{True, False}
-    
+    nb_channels = 8  # {1-8}
+    sampling_rate = 500  # {250,500,1000,2000,4000}
+    bias_enabled = False  # {True, False}
+
     # True when a data stream is active
-    stream_active = False 
-    
-    
+    stream_active = False
+
     """ PUBLIC
     # Constructor
-    # @brief 
+    # @brief
     """
+
     def __init__(self):
         if STUB_SPI == False:
             self.spi = spidev.SpiDev()
@@ -195,84 +198,87 @@ class ADS1299_API(object):
     # openDevice
     # @brief open the ADS1299 interface and initialize the chip
     """
+
     def openDevice(self):
-        
+
         if STUB_SPI == False and STUB_GPIO == False:
-            
+
             # open and configure SPI port
-            self.spi.open(0,0)
+            self.spi.open(0, 0)
             self.spi.max_speed_hz = 4000000
             self.spi.mode = 0b01
 
             # using BCM pin numbering scheme
             GPIO.setmode(GPIO.BCM)
-            
+
             # setup control pins
             GPIO.setup(START_PIN, GPIO.OUT, initial=GPIO.LOW)
             GPIO.setup(nRESET_PIN, GPIO.OUT, initial=GPIO.LOW)
             GPIO.setup(nPWRDN_PIN, GPIO.OUT, initial=GPIO.LOW)
-            
+
             # setup DRDY callback
             GPIO.setup(DRDY_PIN, GPIO.IN)
             GPIO.add_event_detect(DRDY_PIN, GPIO.FALLING, callback=self.drdy_callback)
-        
+
         else:
-            
+
             # setup fake data generator
             print "stubbed mode"
             APIAlive = True
             self.stubThread = Thread(target=self.stubTask)
             self.stubThread.start()
-        
+
         # spi port mutex
         self.spi_lock = Lock()
-        
+
         # init the ADS1299
         self.ADS1299StartupSequence()
-            
+
         return
-        
 
     """ PUBLIC
     # closeDevice
     # @brief close and clean up the SPI, GPIO and running thread
-    """ 
+    """
+
     def closeDevice(self):
         if STUB_SPI == False and STUB_GPIO == False:
             self.spi.close()
             GPIO.cleanup()
-        
+
         self.APIAlive = False
         return
-        
+
     """ PUBLIC
     # startEegStream
     # @brief Init an eeg data stream
-    """ 
+    """
+
     def startEegStream(self):
-        
+
         # stop any on-going stream
         self.resetOngoingState()
-        
+
         # setup EEG mode
         self.setupEEGMode()
         self.stream_active = True
-        
+
         # start the stream
         self.SPI_transmitByte(RDATAC)
-        
+
     """ PUBLIC
     # startTestStream
     # @brief Init a test data stream
-    """ 
+    """
+
     def startTestStream(self):
-        
+
         # stop any on-going stream
         self.resetOngoingState()
-        
+
         # setup test mode
         self.setupTestMode()
-            
+
         # start the stream
         self.stream_active = True
         self.SPI_transmitByte(RDATAC)
@@ -280,7 +286,8 @@ class ADS1299_API(object):
     """ PUBLIC
     # stopStream
     # @brief shut down any active stream
-    """ 
+    """
+
     def stopStream(self):
         # stop any on-going ads stream
         self.SPI_transmitByte(SDATAC)
@@ -290,10 +297,10 @@ class ADS1299_API(object):
     # registerClient
     # @brief register a client handle to push data
     # @param clientHandle, update handle of the client
-    """ 
+    """
+
     def registerClient(self, clientHandle):
         self.clientUpdateHandles.append(clientHandle)
-
 
     """ PUBLIC
     # configure
@@ -302,66 +309,69 @@ class ADS1299_API(object):
     #   - nb_channels {1-8}
     #   - sampling_rate {250, 500, 1000, 2000, 4000}
     #   - bias_enabled {True, False}
-    """ 
-    def configure(self,nb_channels=None, sampling_rate=None,bias_enabled=None):
-        
+    """
+
+    def configure(self, nb_channels=None, sampling_rate=None, bias_enabled=None):
+
         self.stopStream()
-        
+
         if nb_channels is not None:
             self.nb_channels = nb_channels
-            
+
         if sampling_rate is not None:
             self.sampling_rate = sampling_rate
-            
+
         if sampling_rate is not None:
             self.bias_enabled = bias_enabled
-        
-    #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+    # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     #   ADS1299 control
-    #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     """ PRIVATE
     # ADS1299StartupSequence
-    # @brief start-up sequence to init the chip 
+    # @brief start-up sequence to init the chip
     """
+
     def ADS1299StartupSequence(self):
-      
+
         # pwr and reset goes up
         self.setnReset(True)
         self.setnPWRDN(True)
-        
+
         # wait
         sleep(1)
-        
+
         # toggle reset
         self.toggleReset()
 
         # send SDATAC
         self.resetOngoingState()
-        
+
         self.setStart(True)
         self.SPI_transmitByte(RDATAC)
 
     """ PRIVATE
     # setupEEGMode
     # @brief setup EEG mode for data streaming
-    """ 
+    """
+
     def setupEEGMode(self):
 
-        #Write CHnSET 05h (connects test signal)
+        # Write CHnSET 05h (connects test signal)
         # (0) normal operation
         # (110) PGA gain 24
         # (0) SRB2 open
         # (000) Normal operations
-        tx_buf = [0]*self.nb_channels
-        for i in xrange(0,self.nb_channels):
+        tx_buf = [0] * self.nb_channels
+        for i in xrange(0, self.nb_channels):
             tx_buf[i] = 0x60;
         self.SPI_writeMultipleReg(REG_CHnSET_BASE, tx_buf);
 
         # set the MUX for SRB1 to be connected to all N pins
         # MISC register (multiple single-ended electrodes)
         self.SPI_writeSingleReg(REG_MISC, 0x20);
-        
+
         # setup bias
         if self.bias_enabled:
             self.setupBiasDrive()
@@ -369,64 +379,65 @@ class ADS1299_API(object):
     """ PRIVATE
     # setupTestMode
     # @brief setup TEST mode for data streaming
-    """ 
+    """
+
     def setupTestMode(self):
-        
+
         # stop any on-going ads stream
         self.SPI_transmitByte(SDATAC)
 
-        #Write CONFIG2 D0h
+        # Write CONFIG2 D0h
         # (110) reserved
         # (1) test signal generated internally
         # (0) reserved
         # (0) signal amplitude: 1 x -(VREFP - VREFN) / 2400
         # (00) test signal pulsed at fCLK / 2^21
         self.SPI_writeSingleReg(REG_CONFIG2, 0xD0)
-            
-        #Write CHnSET 05h (connects test signal)
-        tx_buf = [0]*self.nb_channels
-        for i in xrange(0,self.nb_channels):
-            tx_buf[i] = 0x65;
-        self.SPI_writeMultipleReg(REG_CHnSET_BASE, tx_buf);
- 
+
+        # Write CHnSET 05h (connects test signal)
+        tx_buf = [0] * self.nb_channels
+        for i in xrange(0, self.nb_channels):
+            tx_buf[i] = 0x65
+        self.SPI_writeMultipleReg(REG_CHnSET_BASE, tx_buf)
 
     """ PRIVATE
     # resetOngoingState
     # @brief reset the registers configuration
-    """ 
+    """
+
     def resetOngoingState(self):
         # send SDATAC
         self.SPI_transmitByte(SDATAC)
 
         # setup CONFIG3 register
         self.SPI_writeSingleReg(REG_CONFIG3, 0xE0)
-        
+
         # setup CONFIG1 register
         self.setSamplingRate()
-        
+
         # setup CONFIG2 register
         self.SPI_writeSingleReg(REG_CONFIG2, 0xC0)
-        
+
         # disable any bias
-        self.SPI_writeSingleReg(REG_BIAS_SENSP, 0x00);
-        self.SPI_writeSingleReg(REG_BIAS_SENSN, 0x00);
-            
+        self.SPI_writeSingleReg(REG_BIAS_SENSP, 0x00)
+        self.SPI_writeSingleReg(REG_BIAS_SENSN, 0x00)
+
         # setup CHnSET registers
-        tx_buf = [0]*MAX_NB_CHANNELS
-        for i in xrange(0,MAX_NB_CHANNELS):
+        tx_buf = [0] * MAX_NB_CHANNELS
+        for i in xrange(0, MAX_NB_CHANNELS):
             # input shorted
-            tx_buf[i] = 0x01;
-        self.SPI_writeMultipleReg(REG_CHnSET_BASE, tx_buf);
-        
-        
+            tx_buf[i] = 0x01
+        self.SPI_writeMultipleReg(REG_CHnSET_BASE, tx_buf)
+
     """ PRIVATE
     # setSamplingRate
     # @brief set CONFIG1 register, which defines the sampling rate
-    """ 
+    """
+
     def setSamplingRate(self):
-        
-        temp_reg_value = 0x90 # base value
-        
+
+        temp_reg_value = 0x90  # base value
+
         # chip in sampling rate
         if self.sampling_rate == 2000:
             temp_reg_value |= 0x03
@@ -436,41 +447,41 @@ class ADS1299_API(object):
             temp_reg_value |= 0x05
         else:
             temp_reg_value |= 0x06
-        
+
         self.SPI_writeSingleReg(REG_CONFIG1, temp_reg_value)
-        
 
     """ PRIVATE
     # setupBiasDrive
     # @brief enable the bias drive by configuring the appropriate registers
     # @ref ADS1299 datasheet, see figure 73, p.67
-    """ 
+    """
+
     def setupBiasDrive(self):
-        
-        if bias_enabled:
-            
+
+        if self.bias_enabled:
+
             temp_reg_value = 0x00
-            for i in xrange(0,self.nb_channels):
-                temp_reg_value |= 0x01<<i
-            self.SPI_writeSingleReg(REG_BIAS_SENSP, temp_reg_value);
-            self.SPI_writeSingleReg(REG_BIAS_SENSN, temp_reg_value);
-            self.SPI_writeSingleReg(REG_CONFIG3, 0xEC);   
-            
-        
+            for i in xrange(0, self.nb_channels):
+                temp_reg_value |= 0x01 << i
+            self.SPI_writeSingleReg(REG_BIAS_SENSP, temp_reg_value)
+            self.SPI_writeSingleReg(REG_BIAS_SENSN, temp_reg_value)
+            self.SPI_writeSingleReg(REG_CONFIG3, 0xEC)
+
     """ PRIVATE
     # stubTask
     # @brief activated in stub mode, will generate fake data
-    """ 
+    """
+
     def stubTask(self):
         while self.APIAlive:
             if self.stream_active:
                 for handle in self.clientUpdateHandles:
-                    handle( np.random.rand(self.nb_channels) )
-            sleep(1.0/float(self.sampling_rate))
+                    handle(np.random.rand(self.nb_channels))
+            sleep(1.0 / float(self.sampling_rate))
 
-    #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     #   GPIO Interface
-    #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
     """ PRIVATE
     # drdy_callback
@@ -479,101 +490,107 @@ class ADS1299_API(object):
              clients
     # @param state, state of the pin to read (not used)
     """
-    def drdy_callback(self,state):
-        
+
+    def drdy_callback(self, state):
+
         # on event, read the data from ADS
         # read 24 + n*24 bits or 3+n*3 bytes
-        bit_values = self.SPI_readMultipleBytes(3+self.nb_channels*3)
-            
+        bit_values = self.SPI_readMultipleBytes(3 + self.nb_channels * 3)
+
         # skip is no stream active
         if self.stream_active == False:
-               return
-        
-        data_array = [0]*self.nb_channels
-        for i in xrange(0,self.nb_channels):
-            data_array[i] = conv24bitsToFloat(bit_values[(i*3+3):((i+1)*3+3)])
+            return
 
-        # broadcast results    
+        data_array = [0] * self.nb_channels
+        for i in xrange(0, self.nb_channels):
+            data_array[i] = conv24bitsToFloat(bit_values[(i * 3 + 3):((i + 1) * 3 + 3)])
+
+        # broadcast results
         for handle in self.clientUpdateHandles:
             handle(data_array)
-            
+
     """ PRIVATE
     # setStart
     # @brief control the START pin
     # @param state, state of the pin to set
-    """ 
-    def setStart(self,state):
+    """
+
+    def setStart(self, state):
         if STUB_GPIO == False:
             if state:
                 GPIO.output(START_PIN, GPIO.HIGH)
             else:
                 GPIO.output(START_PIN, GPIO.LOW)
-        
+
     """ PRIVATE
     # toggleReset
     # @brief toggle the nRESET pin while respecting the timing
-    """ 
+    """
+
     def toggleReset(self):
         # toggle reset
         self.setnReset(False)
         sleep(0.2)
         self.setnReset(True)
         sleep(0.2)
-        
+
     """ PRIVATE
     # setnReset
     # @brief control the nRESET pin
     # @param state, state of the pin to set
-    """ 
-    def setnReset(self,state):
+    """
+
+    def setnReset(self, state):
         if STUB_GPIO == False:
             if state:
                 GPIO.output(nRESET_PIN, GPIO.HIGH)
             else:
                 GPIO.output(nRESET_PIN, GPIO.LOW)
-        
+
     """ PRIVATE
     # setnPWRDN
     # @brief control the nPWRDN pin
     # @param state, state of the pin to set
-    """ 
-    def setnPWRDN(self,state):
+    """
+
+    def setnPWRDN(self, state):
         if STUB_GPIO == False:
             if state:
                 GPIO.output(nPWRDN_PIN, GPIO.HIGH)
             else:
                 GPIO.output(nPWRDN_PIN, GPIO.LOW)
-        
 
-    #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
     #   SPI Interface
-    #%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    
+    # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
     """ PRIVATE
     # SPI_transmitByte
     # @brief push a single byte on the SPI port
     # @param byte, value to push on the port
-    """ 
-    def SPI_transmitByte(self,byte):
-        
+    """
+
+    def SPI_transmitByte(self, byte):
+
         if STUB_SPI == False:
             self.spi_lock.acquire()
             self.spi.xfer2([byte])
             self.spi_lock.release()
-        
+
     """ PRIVATE
     # SPI_writeSingleReg
     # @brief write a value to a single register
     # @param reg, register address to write to
     # @param byte, value to write
-    """ 
-    def SPI_writeSingleReg(self,reg, byte):
-        
+    """
+
+    def SPI_writeSingleReg(self, reg, byte):
+
         if STUB_SPI == False:
             self.spi_lock.acquire()
-            self.spi.xfer2([reg|0x40,0x00,byte])
+            self.spi.xfer2([reg | 0x40, 0x00, byte])
             self.spi_lock.release()
-        
+
     """ PRIVATE
     # SPI_writeMultipleReg
     # @brief write a series of values to a series of adjacent registers
@@ -581,69 +598,70 @@ class ADS1299_API(object):
     #        of the value array
     # @param start_reg, base address from where to start writing
     # @param byte_array, array of bytes containing registers values
-    """ 
-    def SPI_writeMultipleReg(self,start_reg, byte_array):
-        
+    """
+
+    def SPI_writeMultipleReg(self, start_reg, byte_array):
+
         if STUB_SPI == False:
-            tmp = [start_reg|0x40]
-            tmp.append(len(byte_array)-1)
-            for i in xrange(0,len(byte_array)):
+            tmp = [start_reg | 0x40]
+            tmp.append(len(byte_array) - 1)
+            for i in xrange(0, len(byte_array)):
                 tmp.append(byte_array[i])
             self.spi_lock.acquire()
             self.spi.xfer2(tmp)
             self.spi_lock.release()
-        
+
     """ PRIVATE
     # SPI_readMultipleBytes
     # @brief read multiple bytes from the SPI port
     # @param nb_bytes, nb of bytes to read
-    """ 
-    def SPI_readMultipleBytes(self,nb_bytes):
-        
+    """
+
+    def SPI_readMultipleBytes(self, nb_bytes):
+
         r = []
-        
+
         if STUB_SPI == False:
             self.spi_lock.acquire()
-            r = self.spi.xfer2([0x00]*nb_bytes)
+            r = self.spi.xfer2([0x00] * nb_bytes)
             self.spi_lock.release()
-            for i in xrange(0,nb_bytes):
+            for i in xrange(0, nb_bytes):
                 r[i]
-        
+
         return r
-        
-        
+
+
 def _test():
-    
     print "Starting validation sequence"
-    
+
     # init ads api
     ads = ADS1299_API()
-    
+
     # init device
     ads.openDevice()
     # attach default callback
     ads.registerClient(DefaultCallback)
     # configure ads
     ads.configure(sampling_rate=1000)
-    
+
     print "ADS1299 API test stream starting"
-    
+
     # begin test streaming
     ads.startTestStream()
-    
+
     # wait
     sleep(10)
-    
+
     print "ADS1299 API test stream stopping"
-    
+
     # stop device
     ads.stopStream()
     # clean up
     ads.closeDevice()
-    
+
     sleep(1)
     print "Test Over"
 
+
 if __name__ == "__main__":
     _test()
-
