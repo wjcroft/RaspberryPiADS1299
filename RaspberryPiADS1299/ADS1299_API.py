@@ -66,7 +66,7 @@
 
 import struct
 from threading import Semaphore, Lock, Thread
-from  time import time, sleep
+from time import time, sleep
 import random
 import platform
 import sys
