@@ -1,11 +1,13 @@
-# Raspberry Pi ADS1299 Driver
-
-Raspberry Pi driver for ADS1299. 
-
+<p align="center">
+  <img alt="banner" src="/images/banner.jpg/" width="600">
+</p>
+<p align="center" href="">
+  A High Level Driver for ADS1299 Control with Raspberry Pi
+</p>
 
 ## Install
 
-#### Using PyPI
+### Using PyPI
 
 ```
 pip install RaspberryPiADS1299
@@ -13,7 +15,7 @@ pip install RaspberryPiADS1299
 
 Anaconda is not currently supported, if you want to use anaconda, you need to create a virtual environment in anaconda, activate it and use the above command to install it.
 
-#### From sources
+### From sources
 
 For the latest version, you can install the package from the sources using the setup.py script
 
@@ -26,6 +28,22 @@ or in developer mode to be able to modify the sources.
 ```
 python setup.py develop
 ```
+
+## Hardware Configuration
+
+The Raspberry Pi 3 is used as a reference
+
+Signal  |  RPi Pin  |  ADS Pin
+--------------------------------
+MOSI    |     19    |    DIN
+MISO    |     21    |    DOUT
+SCLK    |     23    |    SCLK
+CS      |     24    |    CS
+--------------------------------
+START   |     15    |    START
+RESET   |     16    |    nRESET
+PWRDN   |     18    |    nPWRDN
+DRDY    |     22    |    DRDY
 
 ## How to use it
 
