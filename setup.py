@@ -1,7 +1,6 @@
 from setuptools import setup, find_packages
 
 setup(name = 'RaspberryPiADS1299',
-      packages = ['RaspberryPiADS1299'], # this must be the same as the name above
       version = '0.1.1',
       description = 'A lib for running ADS1299 on Rasberry Pi',
       author='Fredric Simard',
