@@ -1,3 +1,5 @@
+# Raspberry Pi ADS1299 Driver
+
 <p align="center">
   <img alt="banner" src="/images/banner.jpg/" width="600">
 </p>
