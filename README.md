@@ -33,17 +33,16 @@ python setup.py develop
 
 The Raspberry Pi 3 is used as a reference
 
-Signal  |  RPi Pin  |  ADS Pin
---------------------------------
-MOSI    |     19    |    DIN
-MISO    |     21    |    DOUT
-SCLK    |     23    |    SCLK
-CS      |     24    |    CS
---------------------------------
-START   |     15    |    START
-RESET   |     16    |    nRESET
-PWRDN   |     18    |    nPWRDN
-DRDY    |     22    |    DRDY
+|Signal  |  RPi Pin  |  ADS Pin|
+|--------|:---------:|----------:|
+|MOSI    |     19    |    DIN|
+|MISO    |     21    |    DOUT|
+|SCLK    |     23    |    SCLK|
+|CS      |     24    |    CS|
+|START   |     15    |    START|
+|RESET   |     16    |    nRESET|
+|PWRDN   |     18    |    nPWRDN|
+|DRDY    |     22    |    DRDY|
 
 ## How to use it
 
