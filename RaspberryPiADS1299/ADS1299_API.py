@@ -132,7 +132,8 @@ DefaultCallback
 
 
 def DefaultCallback(data):
-    print repr(data)
+    pass
+    #print repr(data)
 
 
 """ ADS1299 PINS """
@@ -501,7 +502,7 @@ class ADS1299_API(object):
         if self.stream_active == False:
             return
 
-        data_array = [0] * self.nb_channels
+        data_array = np.zeros(self.nb_channels)
         for i in xrange(0, self.nb_channels):
             data_array[i] = conv24bitsToFloat(bit_values[(i * 3 + 3):((i + 1) * 3 + 3)])
 
@@ -647,7 +648,7 @@ def _test():
     print "ADS1299 API test stream starting"
 
     # begin test streaming
-    ads.startTestStream()
+    ads.startEegStream()
 
     # wait
     sleep(10)
