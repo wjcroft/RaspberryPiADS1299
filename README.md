@@ -46,9 +46,11 @@ The Raspberry Pi 3 is used as a reference
 |PWRDN   |     18    |    nPWRDN|
 |DRDY    |     22    |    DRDY|
 
-## How to use it
+### Hardware Setup for EEG
 
-### Software Setup
+Connect sensing electrode to P (+) and ref to SRB1. With default config, the API doesn't enable the bias, that should help if you want to test with only a few electrodes.
+
+## How to use it
 
 It is easy as :
 
@@ -88,10 +90,6 @@ sleep(1)
 print "Test Over"
 
 ```
-
-### Hardware Setup for EEG
-
-Connect sensing electrode to P (+) and ref to SRB1. With default config, the API doesn't enable the bias, that should help if you want to test with only a few electrodes.
 
 
 ## Credits
