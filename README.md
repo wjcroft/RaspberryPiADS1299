@@ -48,10 +48,13 @@ The Raspberry Pi 3 is used as a reference
 
 ## How to use it
 
+### Software Setup
+
 It is easy as :
 
 ```python
 from RaspberryPiADS1299 import ADS1299_API
+from time import time, sleep
 
 # init ads api
 ads = ADS1299_API()
@@ -68,6 +71,9 @@ print "ADS1299 API test stream starting"
 # begin test streaming
 ads.startTestStream()
 
+# begin EEG streaming
+# ads.startEegStream()
+
 # wait
 sleep(10)
 
@@ -82,6 +88,11 @@ sleep(1)
 print "Test Over"
 
 ```
+
+### Hardware Setup for EEG
+
+Connect sensing electrode to P (+) and ref to SRB1. With default config, the API doesn't enable the bias, that should help if you want to test with only a few electrodes.
+
 
 ## Credits
 
